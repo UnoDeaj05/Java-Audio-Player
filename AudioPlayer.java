@@ -2,6 +2,8 @@ import java.awt.event.*;
 import javax.swing.*;
 import java.io.*;
 import javax.sound.sampled.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 class AudioPlayer {
@@ -21,6 +23,7 @@ class AudioPlayer {
     AudioInputStream audioInputStream;
     FileNameExtensionFilter filter = new FileNameExtensionFilter("Audio Files (*.wav, *.aiff, *.au)", 
     "wav", ".aiff", ".au");
+    boolean isUpdating;
 
 
     public AudioPlayer() {
@@ -33,6 +36,7 @@ class AudioPlayer {
 
         progresSlider = new JSlider();
         progresSlider.setBounds(10, 250, RESOLUTION_X - 10, 20);
+        progresSlider.setValue(0);
         frame.add(progresSlider);
 
         currentTime = new JLabel("--:--");
@@ -88,9 +92,33 @@ class AudioPlayer {
                         clip = AudioSystem.getClip();
                         clip.open(audioInputStream);
                         playButton.setEnabled(true);
+
                         seconds = (clip.getMicrosecondLength() / 1000000) % 60;
                         minutes = (clip.getMicrosecondLength() / 1000000) / 60;
                         endTime.setText(String.valueOf(minutes) + ":" + String.valueOf(seconds));
+                        progresSlider.setMaximum((int)clip.getMicrosecondLength());
+
+                        Timer timer = new Timer(50, new ActionListener() {
+                            @Override
+                            public void actionPerformed(ActionEvent e) {
+                                if(clip.isActive() && clip != null) {
+                                    currentTime.setText(String.valueOf((int)(clip.getMicrosecondPosition() / 1000000) / 60) + ":" + String.valueOf((int)(clip.getMicrosecondPosition() / 1000000) % 60));
+                                    isUpdating = true;
+                                    progresSlider.setValue((int)clip.getMicrosecondPosition());
+                                    isUpdating = false;
+                                }
+                            }
+                        });
+                        timer.start();
+
+                        progresSlider.addChangeListener(new ChangeListener() {
+                            @Override
+                            public void stateChanged(ChangeEvent e) {
+                                if(!isUpdating) {
+                                    clip.setMicrosecondPosition(progresSlider.getValue() * 1000L);
+                                }
+                            }
+                        });
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -98,6 +126,8 @@ class AudioPlayer {
                 }
             }
         });
+
+
 
         frame.setLayout(null);
         frame.setVisible(true);
